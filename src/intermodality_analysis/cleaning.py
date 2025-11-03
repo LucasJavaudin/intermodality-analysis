@@ -1,3 +1,5 @@
+# Copyright 2025 Lucas Javaudin
+# SPDX-License-Identifier: MIT
 import duckdb
 import geopandas as gpd
 import polars as pl

@@ -1,3 +1,5 @@
+# Copyright 2025 Lucas Javaudin
+# SPDX-License-Identifier: MIT
 library("arrow")
 library("icarus")
 library("rjson")

@@ -1,3 +1,5 @@
+# Copyright 2025 Lucas Javaudin
+# SPDX-License-Identifier: MIT
 from math import pi
 
 import matplotlib.colors as mcolors

@@ -1,3 +1,5 @@
+# Copyright 2025 Lucas Javaudin
+# SPDX-License-Identifier: MIT
 import polars as pl
 from mobisurvstd import SurveyDataReader, read_many
 

@@ -1,3 +1,7 @@
+// Copyright 2025 Lucas Javaudin
+// This work is copyrighted and all rights are reserved.
+// You may not use, copy, modify, or distribute this code
+// without explicit permission from the author.
 #import "@preview/peace-of-posters:0.5.6" as pop
 #import "@preview/zero:0.5.0": num, set-group, zi
 

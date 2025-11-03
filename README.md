@@ -37,3 +37,11 @@ mobility surveys.
    `docs/poster/intermodality_poster.typ`. From the main directory:
    `typst compile docs/poster/main.typ --root .`.
    Note that the result values are automatically updated from the values in `output/results.json`.
+
+## License
+
+The Python and R codes are licensed under the [MIT license](https://mit-license.org/).
+Feel free to modify and redistribute them for your cool projects with MobiSurvStd!
+
+The LaTeX and Typst files are copyrighted and all rights are reserved.
+You may NOT use, copy, modify, or distribute this code without my explicit permission.
