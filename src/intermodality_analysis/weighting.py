@@ -1,11 +1,17 @@
 import json
+import os
 import subprocess
 
 import polars as pl
 
+OUTPUT_DIR = "output/data"
+
 RP_FILENAME = "./data/base-ic-evol-struct-pop-2022.CSV"
 
 DENSITY_FILENAME = "./data/fichier_diffusion_2024.xlsx"
+
+if not os.path.isdir(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
 
 
 def reweight(persons: pl.DataFrame):
@@ -13,7 +19,7 @@ def reweight(persons: pl.DataFrame):
     save_persons(persons)
     print("Running R script to compute new sample weights")
     subprocess.run(["Rscript", "R/weighting.R"])
-    new_weights = pl.read_parquet("output/data/new_weights.parquet")["newWeights"]
+    new_weights = pl.read_parquet(os.path.join(OUTPUT_DIR, "new_weights.parquet"))["newWeights"]
     persons = persons.with_columns(sample_weight_surveyed=new_weights)
     return persons
 
@@ -55,7 +61,7 @@ def save_persons(persons: pl.DataFrame):
         )
         .unique(subset=["name", "person_id"])
     )
-    persons.write_parquet("output/data/persons.parquet")
+    persons.write_parquet(os.path.join(OUTPUT_DIR, "persons.parquet"))
 
 
 def save_totals():
@@ -141,5 +147,5 @@ def save_totals():
         density_cat_3=pl.col("density_cat_3").sum(),
     )
     totals = next(df.iter_rows(named=True))
-    with open("output/data/rp_totals.json", "w") as f:
+    with open(os.path.join(OUTPUT_DIR, "rp_totals.json"), "w") as f:
         json.dump(totals, f)
