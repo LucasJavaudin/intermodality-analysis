@@ -6,5 +6,33 @@ dist/
 wheels/
 *.egg-info
 
+# R-generated files
+.RData
+.Rhistory
+Rplots.pdf
+
+# LaTeX-generated files
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.spl
+*.synctex.gz
+
 # Virtual environments
 .venv
+
+# Custom
+docs/wctr/wctr_javaudin.pdf
+docs/poster/intermodality_poster.pdf
+
+output/access
+output/data
+output/paper_graphs
+output/poster_graphs
+output/maps
+output/results.json
+
+qgis
