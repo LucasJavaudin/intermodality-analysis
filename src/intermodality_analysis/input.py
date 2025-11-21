@@ -5,14 +5,29 @@ from mobisurvstd import SurveyDataReader, read_many
 
 # Surveys from oversea territories.
 OVERSEA_SURVEYS = ["guadeloupe_2021", "fortdefrance_2014", "la_reunion_2016"]
+DUPLICATE_SURVEYS = [
+    "dinan_2010",  # Replaced by rennes_2018
+    "valenciennes_2011",
+    "angers_2012",
+    "sablesdolonne_2011",
+    "larochesuryon_2013",  # Replaced by vendee_2020
+    "marseille_2009",
+    "grenoble_2010",
+    "saintetienne_2010",
+    "sqey_2010",  # Duplicate of EGT2010
+    "sables_dolonne_2021",  # Duplicate of vendee_2020
+]
 
 
 def valid_survey(data: SurveyDataReader):
     # Exclude the national survey and the EGT2020.
-    return data.metadata["name"] not in ("EMP2019", "EGT2020")
+    return (
+        data.metadata["name"] not in ("EMP2019", "EGT2020")
+        and data.metadata["name"] not in DUPLICATE_SURVEYS
+    )
 
 
-def get_trips(data: SurveyDataReader) -> pl.DataFrame:
+def get_trips(data: SurveyDataReader) -> pl.DataFrame | None:
     """Given a SurveyDataReader, returns a DataFrame of trips, with some legs' characteristics."""
     name = data.metadata["name"]
     if not valid_survey(data):
@@ -46,7 +61,7 @@ def read_all_trips(dir: str) -> pl.DataFrame:
     return df
 
 
-def get_persons(data: SurveyDataReader) -> pl.DataFrame:
+def get_persons(data: SurveyDataReader) -> pl.DataFrame | None:
     """Given a SurveyDataReader, returns a DataFrame of persons, with household-level data."""
     name = data.metadata["name"]
     survey_type = data.metadata["type"]

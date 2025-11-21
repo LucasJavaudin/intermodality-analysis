@@ -17,11 +17,13 @@ if not os.path.isdir(OUTPUT_DIR):
 
 
 def reweight(persons: pl.DataFrame):
+    persons = persons.sort("name", "person_id")
     save_totals()
     save_persons(persons)
     print("Running R script to compute new sample weights")
     subprocess.run(["Rscript", "R/weighting.R"])
     new_weights = pl.read_parquet(os.path.join(OUTPUT_DIR, "new_weights.parquet"))["newWeights"]
+    persons = persons.rename({"sample_weight_surveyed": "old_weight"})
     persons = persons.with_columns(sample_weight_surveyed=new_weights)
     return persons
 
@@ -57,16 +59,14 @@ def save_persons(persons: pl.DataFrame):
             .cast(pl.String)
             .cast(pl.Int64),
             # Convert density from 7 levels to 3 levels.
-            density_cat=pl.col("home_insee_density").replace_strict(
-                {1: 1, 2: 2, 3: 2, 4: 2, 5: 3, 6: 3, 7: 3}
-            ),
+            density_cat="home_insee_density",
         )
-        .unique(subset=["name", "person_id"])
+        .unique(subset=["name", "person_id"], maintain_order=True)
     )
     persons.write_parquet(os.path.join(OUTPUT_DIR, "persons.parquet"))
 
 
-def save_totals():
+def read_totals():
     df = (
         pl.scan_csv(RP_FILENAME, separator=";", schema_overrides={"COM": pl.String})
         .with_columns(
@@ -109,9 +109,9 @@ def save_totals():
     densities = pl.read_excel(
         DENSITY_FILENAME,
         read_options={"header_row": 4},
-        columns=["CODGEO", "DENS"],
-        schema_overrides={"CODGEO": pl.String, "DENS": pl.UInt8},
-    ).rename({"CODGEO": "insee", "DENS": "density_cat"})
+        columns=["CODGEO", "DENS7"],
+        schema_overrides={"CODGEO": pl.String, "DENS7": pl.UInt8},
+    ).rename({"CODGEO": "insee", "DENS7": "density_cat"})
 
     df = df.join(densities, on="insee", how="left")
 
@@ -120,6 +120,15 @@ def save_totals():
     df = df.with_columns(density_cat=pl.when(is_arrondissement).then(1).otherwise("density_cat"))
 
     assert df["density_cat"].null_count() == 0
+
+    return df
+
+
+def save_totals():
+    df = read_totals()
+
+    # Exclude the most rural areas.
+    df = df.filter(pl.col("density_cat") != 7)
 
     # Multiply dummy variable density cat with population size.
     df = df.to_dummies("density_cat").with_columns(pl.col("^density_cat_.*$") * pl.col("pop"))
@@ -147,7 +156,17 @@ def save_totals():
         density_cat_1=pl.col("density_cat_1").sum(),
         density_cat_2=pl.col("density_cat_2").sum(),
         density_cat_3=pl.col("density_cat_3").sum(),
+        density_cat_4=pl.col("density_cat_4").sum(),
+        density_cat_5=pl.col("density_cat_5").sum(),
+        density_cat_6=pl.col("density_cat_6").sum(),
     )
     totals = next(df.iter_rows(named=True))
     with open(os.path.join(OUTPUT_DIR, "rp_totals.json"), "w") as f:
         json.dump(totals, f)
+
+
+def get_density_counts():
+    df = read_totals()
+
+    df = df.group_by("density_cat").agg(total_weight=pl.col("pop").sum())
+    return df.rows_by_key("density_cat", named=True, unique=True)

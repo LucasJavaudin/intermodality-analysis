@@ -75,6 +75,8 @@ def general_cleaning(persons: pl.DataFrame, trips: pl.DataFrame):
     persons = persons.filter(pl.col("woman").is_not_null())
     # Drop persons with unknown home insee density (only 23).
     persons = persons.filter(pl.col("home_insee_density").is_not_null())
+    # Drop persons with home density = 7 (very rural areas).
+    persons = persons.filter(pl.col("home_insee_density") != 7)
 
     # Re-weight persons.
     persons = reweight(persons)
@@ -86,7 +88,7 @@ def general_cleaning(persons: pl.DataFrame, trips: pl.DataFrame):
 
     # Join the two DataFrames
     df = trips.join(persons, on=["person_id", "name"], how="inner", coalesce=True)
-    return df
+    return persons, df
 
 
 def local_trips_cleaning(df):

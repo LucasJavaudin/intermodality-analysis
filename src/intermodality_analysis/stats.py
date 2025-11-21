@@ -10,6 +10,19 @@ UNIMODAL_NON_WALK_TRIPS_EXPR = pl.col("intermodality").not_() & pl.col("nb_legs"
 )
 
 
+def get_counts_by_insee_density(df: pl.DataFrame) -> dict:
+    return (
+        df.group_by("home_insee_density")
+        .agg(
+            count=pl.len(),
+            mean_weight=pl.col("sample_weight_surveyed").mean(),
+            total_weight=pl.col("sample_weight_surveyed").sum(),
+        )
+        .sort("home_insee_density")
+        .rows_by_key("home_insee_density", named=True, unique=True)
+    )
+
+
 def get_trips_stats(df: pl.DataFrame, mask: pl.Expr) -> dict:
     """Returns a dictionary with some statistics on the number of trips and trips' distance in the
     given DataFrame, for the given mark.
@@ -59,7 +72,9 @@ def get_trips_stats_by_intermodality_type_impl(df: pl.DataFrame, cond: pl.Expr) 
         .agg(
             nb_trips=cond.sum(),
             weighted_nb_trips=pl.col("sample_weight_surveyed").filter(cond).sum(),
-            weighted_dist=pl.col("sample_weight_surveyed").filter(cond).sum(),
+            weighted_dist=(pl.col("trip_euclidean_distance_km") * pl.col("sample_weight_surveyed"))
+            .filter(cond)
+            .sum(),
             tot_nb_trips=pl.len(),
             totweight=pl.col("sample_weight_surveyed").sum(),
             tot_weighted_dist=(

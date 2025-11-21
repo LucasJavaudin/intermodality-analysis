@@ -5,8 +5,8 @@ import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-# poster or paper
-DOC_TYPE = "poster"
+# poster, slides, or paper
+DOC_TYPE = "slides"
 
 # Define a color palette from Okabe and Ito.
 ORANGE = "#E69F00"
@@ -49,6 +49,30 @@ if DOC_TYPE == "poster":
     }
     plt.rcParams.update(PARAMETERS)
     OUTPUT_FORMAT = "png"
+    LANGUAGE = "FR"
+elif DOC_TYPE == "slides":
+    # Directory where the generated graphs should be stored.
+    GRAPH_DIR = "./output/slides_graphs/"
+    # Width of the text on the slides.
+    WIDTH = 398
+    # Define font parameters for matplotlib.
+    PARAMETERS = {
+        "text.usetex": True,
+        "figure.dpi": 300,
+        "font.size": 8,
+        "font.serif": ["Liberation"],
+        "font.sans-serif": ["Roboto", "DejaVu Sans"],
+        "font.monospace": [],
+        "axes.labelsize": 9,
+        "axes.titlesize": 10,
+        "axes.linewidth": 1.0,
+        "legend.fontsize": 8,
+        "xtick.labelsize": 8,
+        "ytick.labelsize": 8,
+        "font.family": "serif",
+    }
+    plt.rcParams.update(PARAMETERS)
+    OUTPUT_FORMAT = "pdf"
     LANGUAGE = "FR"
 elif DOC_TYPE == "paper":
     # Directory where the generated graphs should be stored.

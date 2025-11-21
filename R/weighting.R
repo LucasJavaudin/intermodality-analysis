@@ -4,6 +4,8 @@ library("arrow")
 library("icarus")
 library("rjson")
 
+set.seed(13081996)
+
 df <- read_parquet("output/data/persons.parquet")
 
 totals <- fromJSON(file="output/data/rp_totals.json")
@@ -37,13 +39,13 @@ mar3 <- c(
 )
 mar4 <- c(
   "density_cat",
-  3,
+  6,
   totals$density_cat_1,
   totals$density_cat_2,
   totals$density_cat_3,
-  0,
-  0,
-  0,
+  totals$density_cat_4,
+  totals$density_cat_5,
+  totals$density_cat_6,
   0,
   0,
   0
@@ -56,7 +58,7 @@ newWeights <- calibration(
   colWeights="init_weight",
   method="logit",
   bounds=c(0.2, 5.0),
-  description=FALSE,
+  description=TRUE,
   # calibTolerance=1e-3,
   # precisionBounds=1e-3,
 )

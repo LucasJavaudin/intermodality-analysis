@@ -21,11 +21,14 @@ from intermodality_analysis.cleaning import (
 )
 from intermodality_analysis.graphs import (
     density_flows_polar_plot,
+    density_sample_weights_bar_chart,
     euclidean_distance_densities,
     intermodality_types_bars,
+    pcs_bar_chart,
     pt_entry_exit_modes_bars,
     purposes_bar_chart,
     ratio_pt_car_dist_density,
+    sample_weights_densities,
 )
 from intermodality_analysis.input import (
     read_all_detailed_zones,
@@ -36,6 +39,7 @@ from intermodality_analysis.mpl import GRAPH_DIR
 from intermodality_analysis.stats import (
     UNIMODAL_NON_WALK_TRIPS_EXPR,
     get_cat_matrix_stats,
+    get_counts_by_insee_density,
     get_density_cats_stats,
     get_entry_exit_mode_stats,
     get_nb_transfers_stats,
@@ -47,6 +51,7 @@ from intermodality_analysis.stats import (
     get_trips_stats_by_intermodality_type,
     get_trips_stats_by_intermodality_type_for_groups,
 )
+from intermodality_analysis.weighting import get_density_counts
 
 duckdb.install_extension("spatial")
 duckdb.load_extension("spatial")
@@ -62,37 +67,6 @@ OUTPUT_FILE = "./output/results.json"
 
 # Filename where the French PT stops data are stored.
 STOPS_FILENAME = "./data/all_stops.parquet"
-
-# Labels of the socio-professional categories.
-PCS_LABELS = {
-    1: "Agriculteur",
-    2: "Artisan",
-    3: "Cadre",
-    4: "Prof. interm.",
-    5: "Employé",
-    6: "Ouvrier",
-}
-
-# Map GTFS route type -> PT mode.
-STOP_MODES_MAP = {
-    "bus": "bus",
-    "rail": "rail",
-    "regional_coach": "bus",
-    "tram": "tram",
-    "school_bus": "bus",
-    "coach_service": "bus",
-    "bus_service": "bus",
-    "demand_and_response_bus": "bus",
-    "metro": "metro",
-    "ferry": "ferry",
-    "trolleybus": "bus",
-    "funicular": "funicular",
-    "aerial_lift": "funicular",
-    "express_bus": "bus",
-    "railway_service": "rail",
-    "air_service": "funicular",
-    "cable_tram": "tram",
-}
 
 if __name__ == "__main__":
     print("Reading surveyed households and persons")
@@ -116,20 +90,40 @@ if __name__ == "__main__":
     counts = {
         "nb_households": nb_households,
         "nb_persons": nb_persons,
+        "persons_weight": persons["sample_weight_surveyed"].sum(),
         "nb_trips": len(trips),
         "nb_legs": trips["leg_characs"].list.len().sum(),
     }
     RESULTS["global"]["raw_counts"] = counts
 
+    RESULTS["density_counts"]["raw"] = get_counts_by_insee_density(persons)
+    RESULTS["density_counts"]["ref"] = get_density_counts()
+
+    print("Graph: INSEE density bar chart")
+    density_sample_weights_bar_chart(
+        RESULTS["density_counts"], os.path.join(GRAPH_DIR, "insee_density_bars")
+    )
+
     print("General cleaning")
-    df = general_cleaning(persons, trips)
+    persons, df = general_cleaning(persons, trips)
 
     counts = {
+        "np_persons": len(persons),
+        "persons_weight": persons["sample_weight_surveyed"].sum(),
         "nb_trips": len(df),
+        "trips_weight": df["sample_weight_surveyed"].sum(),
         "nb_legs": df["leg_characs"].list.len().sum(),
         "trip_dist": df["trip_euclidean_distance_km"].sum(),
     }
     RESULTS["global"]["cleaned_counts"] = counts
+    RESULTS["density_counts"]["cleaned"] = get_counts_by_insee_density(persons)
+
+    print("Graph: sample weights")
+    sample_weights_densities(
+        persons["old_weight"],
+        persons["sample_weight_surveyed"],
+        os.path.join(GRAPH_DIR, "sample_weights_densities"),
+    )
 
     print("Density cleaning")
     df = density_cleaning(df)
@@ -165,6 +159,7 @@ if __name__ == "__main__":
     df = intermodality_cleaning(df)
     print("Purposes cleaning")
     df = purpose_cleaning(df)
+    df.write_parquet("tmp.parquet")
 
     print("Computing trips' stats")
     # Add some statistics on the intermodality trips.
@@ -269,6 +264,8 @@ if __name__ == "__main__":
         ),
         pl.col("professional_occupation").eq("student") | pl.col("has_driving_license").ne("yes"),
     )
+
+    pcs_bar_chart(RESULTS["person_characs"]["pcs_group_code"], os.path.join(GRAPH_DIR, "pcs_bars"))
 
     print("Cleaning PT+car trips")
     pt_car_trips = get_pt_car_trips(df)

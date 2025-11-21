@@ -116,6 +116,44 @@ DENSITY_LABELS_EN = {
     "4_rural": "Rural",
 }
 
+# Labels of the INSEE density categories.
+INSEE_DENSITY_LABELS_FR = {
+    1: "Grand centre urbain",
+    2: "Centre urbain interm.",
+    3: "Petite ville",
+    4: "Ceinture urbaine",
+    5: "Bourg rural",
+    6: "Rural dispersé",
+    7: "Rural très dispersé",
+}
+INSEE_DENSITY_LABELS_EN = {
+    1: "Large urban center",
+    2: "Interm. urban center",
+    3: "Small town",
+    4: "Urban belt",
+    5: "Rural village",
+    6: "Rural scattered",
+    7: "Rural very scattered",
+}
+
+# Labels of the socio-professional categories.
+PCS_LABELS_FR = {
+    1: "Agriculteur",
+    2: "Artisan",
+    3: "Cadre",
+    4: "Prof. interm.",
+    5: "Employé",
+    6: "Ouvrier",
+}
+PCS_LABELS_EN = {
+    1: "Farmer",
+    2: "Craft worker",
+    3: "Chief exec.",
+    4: "Interm. occ.",
+    5: "White-collar",
+    6: "Blue-collar",
+}
+
 
 def add_extension(filename: str):
     return filename + "." + OUTPUT_FORMAT
@@ -162,9 +200,54 @@ def euclidean_distance_densities(
     ax.plot(xs, ys, color=BLUE, alpha=0.9)
     ax.fill_between(xs, ys, color=BLUE, alpha=0.3)
     idx = ys.argmax() + 10
-    ax.annotate(intermodal_str, xy=(xs[idx] + 1, ys[idx]), color=BLUE)
+    ax.annotate(intermodal_str, xy=(xs[idx] + 1, ys[idx] + 0.01), color=BLUE)
     # Figure parameters.
     ax.set_xlim(0, max_dist)
+    ax.set_ylim(bottom=0)
+    ax.tick_params(axis="y", which="both", length=0, labelleft=False)
+    sns.despine(top=True, right=True)
+    fig.tight_layout(pad=0.5)
+    fig.savefig(add_extension(filename))
+
+
+def sample_weights_densities(
+    original_weights: pl.Series,
+    new_weights: pl.Series,
+    filename: str,
+    bw_factor: float = 0.05,
+):
+    m = max(original_weights.quantile(0.99), new_weights.quantile(0.99))
+    xs = np.linspace(0, m, 200)
+    if DOC_TYPE == "poster":
+        fig, ax = get_figure(ratio=0.5)
+    elif DOC_TYPE == "slides":
+        fig, ax = get_figure(ratio=0.6, fraction=0.65)
+    else:
+        fig, ax = get_figure(ratio=0.5, fraction=0.6)
+    if LANGUAGE == "FR":
+        original_str = "Poids initiaux"
+        new_str = "Poids recalibrés"
+        ax.set_xlabel("Poids")
+        ax.set_ylabel("Densité")
+    elif LANGUAGE == "EN":
+        original_str = "Initial weights"
+        new_str = "Recalibrated weights"
+        ax.set_xlabel("Weight")
+        ax.set_ylabel("Density")
+    # Original weights.
+    ys = get_density(xs, original_weights, weights=None, bw_factor=bw_factor)
+    ax.plot(xs, ys, color=PINK, alpha=0.9)
+    ax.fill_between(xs, ys, color=PINK, alpha=0.3)
+    idx = ys.argmax() + 5
+    ax.annotate(original_str, xy=(xs[idx] + 20, ys[idx]), color=PINK)
+    # New weights.
+    ys = get_density(xs, new_weights, weights=None, bw_factor=bw_factor)
+    ax.plot(xs, ys, color=LIGHTBLUE, alpha=0.9)
+    ax.fill_between(xs, ys, color=LIGHTBLUE, alpha=0.3)
+    idx = ys.argmax() + 5
+    ax.annotate(new_str, xy=(xs[idx] + 20, ys[idx]), color=LIGHTBLUE)
+    # Figure parameters.
+    ax.set_xlim(0, m)
     ax.set_ylim(bottom=0)
     ax.tick_params(axis="y", which="both", length=0, labelleft=False)
     sns.despine(top=True, right=True)
@@ -199,7 +282,7 @@ def age_density_by_type(
     ax.plot(xs, ys, color=ORANGE, alpha=0.9)
     ax.annotate("Intermodalité (cond.)", xy=(xs[idx] + 1, ys[idx]), color=ORANGE)
     # Intermodality car_passenger
-    ys = get_density(xs, passenger_ages, passenger_weights)
+    ys = get_density(xs, passenger_ages, passenger_weights, bw_factor)
     ax.fill_between(xs, ys, color=YELLOW, alpha=0.3)
     idx = ys.argmax() + 10
     ax.plot(xs, ys, color=YELLOW, alpha=0.9)
@@ -218,6 +301,8 @@ def purposes_bar_chart(results: dict, filename: str):
     """Creates a horizontal bar chart of purposes."""
     if DOC_TYPE == "poster":
         fig, ax = get_figure(ratio=0.6)
+    elif DOC_TYPE == "slides":
+        fig, ax = get_figure(ratio=0.7, fraction=0.57)
     else:
         fig, ax = get_figure(ratio=0.7, fraction=0.6)
     # Find the purposes in order of increasing share for intermodal trips.
@@ -275,6 +360,98 @@ def purposes_bar_chart(results: dict, filename: str):
     fig.savefig(add_extension(filename))
 
 
+def density_sample_weights_bar_chart(results: dict, filename: str):
+    """Creates a horizontal bar chart of sample weight by INSEE density."""
+    if DOC_TYPE == "poster":
+        fig, ax = get_figure(ratio=0.6)
+    elif DOC_TYPE == "slides":
+        fig, ax = get_figure(ratio=0.7, fraction=0.6)
+    else:
+        fig, ax = get_figure(ratio=0.7, fraction=0.6)
+    if LANGUAGE == "FR":
+        labels = INSEE_DENSITY_LABELS_FR
+        raw_str = "Enquêtes"
+        ref_str = "Réf. (INSEE)"
+    elif LANGUAGE == "EN":
+        labels = INSEE_DENSITY_LABELS_EN
+        raw_str = "Enquêtes"
+        ref_str = "Ref. (INSEE)"
+    bars_data = [
+        (results["ref"], -0.45, GREEN, ref_str),
+        (results["raw"], 0.45, PINK, raw_str),
+    ]
+    values = list(range(7, 0, -1))
+    for r, height, color, label in bars_data:
+        widths = [r[i]["total_weight"] for i in values]
+        bars = ax.barh(
+            y=list(reversed(labels.values())),
+            width=widths,
+            height=height,
+            color=color,
+            align="edge",
+            label=label,
+        )
+    ratios = list()
+    for i in values:
+        v0 = results["raw"][i]["total_weight"]
+        v1 = results["ref"][i]["total_weight"]
+        ratio = v0 / v1
+        ratios.append(rf"{ratio * 100:.0f}\%")
+    ax.bar_label(bars, labels=ratios, padding=5, color=BLACK)
+    ax.xaxis.set_major_formatter(lambda x, pos: "{:.0f}M".format(x / 1e6))
+    ax.set_xlim(left=0)
+    ax.tick_params(axis="y", which="both", length=0)
+    ax.legend(loc="lower right", handletextpad=0.3)
+    ax.grid(which="major", axis="x")
+    sns.despine(top=True, right=True)
+    fig.tight_layout(pad=0.3)
+    fig.savefig(add_extension(filename))
+
+
+def pcs_bar_chart(results: dict, filename: str):
+    """Creates a horizontal bar chart of PCS types for PT+car driver vs unimodal."""
+    if DOC_TYPE == "poster":
+        fig, ax = get_figure(ratio=0.6)
+    elif DOC_TYPE == "slides":
+        fig, ax = get_figure(ratio=0.7, fraction=0.6)
+    else:
+        fig, ax = get_figure(ratio=0.7, fraction=0.6)
+    if LANGUAGE == "FR":
+        labels = list(reversed(PCS_LABELS_FR.values()))
+        intermodal_str = "Intermodal"
+        unimodal_str = "Unimodal (hors MàP)"
+        xlabel = "Part des déplacements"
+    elif LANGUAGE == "EN":
+        labels = list(reversed(PCS_LABELS_EN.values()))
+        intermodal_str = "Intermodal"
+        unimodal_str = "Unimodal (ex. walk-only)"
+        xlabel = "Share of trips"
+    bars_data = [
+        ("pt+car_driver", 0.45, BLUE, intermodal_str),
+        ("unimodal_trips_no_walk", -0.45, PURPLE, unimodal_str),
+    ]
+    for t, height, color, label in bars_data:
+        widths = [results[i][t]["share_weighted_trips"] for i in reversed(range(1, 7))]
+        bars = ax.barh(
+            y=labels,
+            width=widths,
+            height=height,
+            color=color,
+            align="edge",
+            label=label,
+        )
+        ax.bar_label(bars, fmt="{:.0%}", padding=5, color=color)
+    ax.xaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
+    ax.set_xlim(left=0)
+    ax.tick_params(axis="y", which="both", length=0)
+    ax.set_xlabel(xlabel)
+    ax.legend(loc="upper right", handletextpad=0.3)
+    ax.grid(which="major", axis="x")
+    sns.despine(top=True, right=True)
+    fig.tight_layout(pad=0.3)
+    fig.savefig(add_extension(filename))
+
+
 def intermodality_types_bars(results: dict, filename: str):
     """Creates a horizontal bar chart of intermodality type shares."""
     # Sort the results in order of increasing share.
@@ -309,6 +486,8 @@ def ratio_pt_car_dist_density(
     """Creates a line plot of the density of the ratio PT dist / total dist."""
     if DOC_TYPE == "poster":
         fig, ax = get_figure(ratio=0.5)
+    elif DOC_TYPE == "slides":
+        fig, ax = get_figure(ratio=0.55, fraction=0.6)
     else:
         fig, ax = get_figure(ratio=0.6, fraction=0.6)
     if LANGUAGE == "FR":
@@ -328,7 +507,7 @@ def ratio_pt_car_dist_density(
     ax.axvline(0.5, color=BLACK)
     ax.annotate(
         more_car_str,
-        xy=(0.18, 0.75),
+        xy=(0.17, 0.75),
         xytext=(0.25, 0.75),
         xycoords="figure fraction",
         textcoords="figure fraction",
@@ -339,7 +518,7 @@ def ratio_pt_car_dist_density(
     )
     ax.annotate(
         more_pt_str,
-        xy=(0.82, 0.75),
+        xy=(0.83, 0.75),
         xytext=(0.75, 0.75),
         xycoords="figure fraction",
         textcoords="figure fraction",
@@ -387,7 +566,7 @@ def pt_vs_car_dist_scatter(
     xs = np.linspace(0, max_dist, 200)
     ys = get_density(xs, pt_dists, weights, bw_factor)
     axs["histx"].fill_between(xs, ys, color=ORANGE)
-    ys = get_density(xs, car_dists, weights)
+    ys = get_density(xs, car_dists, weights, bw_factor)
     axs["histy"].fill_betweenx(xs, ys, color=PINK)
     axs["scatter"].set_xlabel("Distance TC (km)")
     axs["scatter"].set_ylabel("Distance Voiture (km)")
@@ -413,6 +592,8 @@ def pt_entry_exit_modes_bars(results: dict, filename: str):
     results = dict(sorted(results.items(), key=lambda i: i[1]["share_weighted_trips"]))
     if DOC_TYPE == "poster":
         fig, ax = get_figure(ratio=0.4)
+    elif DOC_TYPE == "slides":
+        fig, ax = get_figure(ratio=0.5, fraction=0.53)
     else:
         fig, ax = get_figure(ratio=0.5, fraction=0.6)
     if LANGUAGE == "FR":
@@ -452,6 +633,9 @@ def density_flows_polar_plot(cat_matrix: pl.DataFrame, filename: str):
     if DOC_TYPE == "poster":
         fig, ax = get_figure(ratio=0.9, subplot_kw={"projection": "polar"})
         width = 30
+    elif DOC_TYPE == "slides":
+        fig, ax = get_figure(ratio=1.0, fraction=0.45, subplot_kw={"projection": "polar"})
+        width = 6
     else:
         fig, ax = get_figure(ratio=1.0, fraction=0.6, subplot_kw={"projection": "polar"})
         width = 12
